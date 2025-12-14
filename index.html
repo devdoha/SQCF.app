@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SQCF Application</title>
+    
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* --- [1] 디자인 시스템 --- */
+        :root {
+            /* 라이트 모드 */
+            --primary: #E6007E;
+            --text-main: #191F28;
+            --text-sub: #6B7684;
+            --bg-body: #F9FAFB;
+            --white: #FFFFFF;
+            --nav-bg: rgba(255, 255, 255, 0.7);
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --card-hover-shadow: 0 20px 40px rgba(230, 0, 126, 0.12);
+            --btn-bg: #F2F4F6;
+            --btn-border: #E5E8EB;
+            
+            --correct-bg: #E8F5E9; --correct-text: #1B5E20;
+            --wrong-bg: #FFEBEE; --wrong-text: #C62828;
+            --explain-bg: #EAECEF;
+            
+            --radius-card: 28px;
+            --radius-btn: 16px;
+        }
+
+        /* 다크 모드 */
+        [data-theme="dark"] {
+            --primary: #FF4095;
+            --text-main: #E2E2E2;
+            --text-sub: #9E9E9E;
+            --bg-body: #121212;
+            --white: #1E1E1E;
+            --nav-bg: rgba(30, 30, 30, 0.7);
+            --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            --card-hover-shadow: 0 20px 50px rgba(255, 64, 149, 0.15);
+            --btn-bg: #2C2C2C;
+            --btn-border: #333333;
+
+            --correct-bg: #052e16; --correct-text: #4ade80;
+            --wrong-bg: #450a0a; --wrong-text: #f87171;
+            --explain-bg: #2A2A2A;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Pretendard', sans-serif;
+            margin: 0; padding: 0;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.5;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* 배경 데코레이션 */
+        .ambient-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            overflow: hidden; pointer-events: none;
+        }
+        .blob {
+            position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6;
+            animation: float 10s infinite alternate ease-in-out;
+            transition: opacity 0.3s;
+        }
+        [data-theme="dark"] .blob { opacity: 0.3; }
+
+        .blob-1 {
+            top: -10%; left: -10%; width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(230,0,126,0.3) 0%, rgba(255,255,255,0) 70%);
+        }
+        .blob-2 {
+            bottom: -10%; right: -10%; width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(108,36,137,0.3) 0%, rgba(255,255,255,0) 70%);
+            animation-delay: -5s;
+        }
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* 네비게이션 */
+        nav {
+            padding: 20px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--nav-bg); backdrop-filter: blur(12px);
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid rgba(128,128,128,0.1);
+            transition: background 0.3s;
+        }
+        .logo { font-size: 1.2rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; }
+        .logo span { color: var(--primary); }
+
+        .theme-btn {
+            background: var(--btn-bg); border: 1px solid var(--btn-border);
+            color: var(--text-main); padding: 8px 12px; border-radius: 20px;
+            cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .theme-btn:hover { transform: scale(1.1); }
+
+        /* --- [2] 메인 화면 --- */
+        .main-wrapper {
+            max-width: 800px; margin: 0 auto; padding: 60px 24px 100px;
+        }
+        .fade-up { animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .delay-1 { animation-delay: 0.1s; } .delay-2 { animation-delay: 0.2s; } .delay-3 { animation-delay: 0.3s; }
+        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+        .hero { text-align: center; margin-bottom: 70px; }
+        .badge {
+            background: rgba(230,0,126,0.1); 
+            color: var(--primary); padding: 8px 18px; border-radius: 100px; font-weight: 700; font-size: 0.9rem;
+            display: inline-block; margin-bottom: 24px;
+            border: 1px solid rgba(230,0,126,0.2);
+        }
+        .hero h1 { 
+            font-size: clamp(2.5rem, 5vw, 3.2rem); font-weight: 800; line-height: 1.25; margin: 0 0 24px; color: var(--text-main);
+            letter-spacing: -1px;
+        }
+        .hero p { 
+            font-size: 1.15rem; color: var(--text-sub); line-height: 1.6; margin: 0 auto;
+            max-width: 500px; word-break: keep-all;
+        }
+
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+        
+        .card {
+            background: var(--white); border-radius: var(--radius-card); padding: 32px;
+            box-shadow: var(--card-shadow); cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex; flex-direction: column; height: 100%;
+            border: 1px solid rgba(128,128,128,0.05); position: relative; overflow: hidden;
+            z-index: 1;
+        }
+        .card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px;
+            background: transparent; transition: background 0.3s;
+        }
+        .card:hover { transform: translateY(-8px); box-shadow: var(--card-hover-shadow); }
+        
+        .card.apt:hover::before { background: var(--primary); }
+        .card.vol:hover::before { background: #9C27B0; }
+        .card.gen:hover::before { background: #E91E63; }
+
+        .icon-box {
+            width: 56px; height: 56px; border-radius: 20px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.6rem; color: white; margin-bottom: 24px;
+            transition: transform 0.3s; box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .card:hover .icon-box { transform: scale(1.1) rotate(5deg); }
+        .bg-pink { background: linear-gradient(135deg, #FF80AB, #E6007E); }
+        .bg-purple { background: linear-gradient(135deg, #CE93D8, #9C27B0); }
+        .bg-blue { background: linear-gradient(135deg, #81D4FA, #039BE5); }
+
+        .card h3 { font-size: 1.4rem; font-weight: 800; margin: 0 0 12px; }
+        .card p { font-size: 1rem; color: var(--text-sub); line-height: 1.6; margin: 0 0 32px; flex-grow: 1; word-break: keep-all; }
+        
+        .btn-arrow {
+            width: 100%; padding: 16px; border-radius: 16px;
+            background: var(--btn-bg); color: var(--text-main); border: 1px solid var(--btn-border);
+            font-weight: 700; font-size: 1rem;
+            display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;
+            pointer-events: none;
+        }
+        .card:hover .btn-arrow { background: var(--text-main); color: var(--bg-body); border-color: var(--text-main); }
+
+        /* --- [3] 퀴즈 화면 --- */
+        .quiz-wrapper {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-body); z-index: 200; overflow-y: auto;
+        }
+        .quiz-wrapper.active { display: block; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .quiz-container { max-width: 600px; margin: 0 auto; padding: 40px 24px 80px; }
+        .quiz-header { 
+            display: flex; justify-content: space-between; margin-bottom: 40px; align-items: center; 
+            background: var(--nav-bg); backdrop-filter: blur(10px);
+            padding: 16px 20px; border-radius: 100px; border: 1px solid rgba(128,128,128,0.1);
+        }
+        .close-btn { font-size: 1.2rem; border: none; background: none; cursor: pointer; color: var(--text-sub); }
+
+        .progress-track { width: 100%; height: 8px; background: var(--btn-bg); border-radius: 10px; margin-bottom: 30px; overflow:hidden;}
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+
+        .q-text { font-size: 1.6rem; font-weight: 800; line-height: 1.45; margin-bottom: 40px; word-break: keep-all; color: var(--text-main); }
+        
+        .opt-btn {
+            width: 100%; padding: 20px; margin-bottom: 12px;
+            background: var(--white); border: 2px solid var(--btn-border); border-radius: 20px;
+            font-size: 1.1rem; font-weight: 600; text-align: left; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: all 0.2s; color: var(--text-main);
+        }
+        .opt-btn:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .opt-btn.selected { background: var(--primary); color: white; border-color: var(--primary); }
+        .opt-btn.correct { background: var(--correct-bg); color: var(--correct-text); border-color: var(--correct-text); }
+        .opt-btn.wrong { background: var(--wrong-bg); color: var(--wrong-text); border-color: var(--wrong-text); }
+
+        .explain-box {
+            background: var(--explain-bg); padding: 24px; border-radius: 20px; margin: 24px 0;
+            display: none; line-height: 1.6; font-size: 1rem; color: var(--text-main); animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+        .nav-btn {
+            flex: 1; padding: 18px; border-radius: 18px; font-weight: 700; font-size: 1.05rem;
+            cursor: pointer; border: none; transition: transform 0.2s;
+        }
+        .nav-btn:hover { transform: scale(1.02); }
+        .prev-btn { background: var(--btn-bg); color: var(--text-sub); border: 1px solid var(--btn-border); }
+        .next-btn { background: var(--text-main); color: var(--bg-body); }
+
+        /* --- [4] 결과 화면 --- */
+        .result-container { display: none; max-width: 600px; margin: 40px auto; padding: 0 24px 80px; }
+        
+        .rank-1-card {
+            background: var(--white); border-radius: 36px; padding: 50px 30px;
+            text-align: center; box-shadow: var(--card-shadow);
+            margin-bottom: 40px; border: 2px solid var(--primary);
+            position: relative; overflow: hidden; animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes popIn { from{transform:scale(0.9); opacity:0;} to{transform:scale(1); opacity:1;} }
+
+        .rank-badge {
+            background: var(--primary); color: white; display: inline-block;
+            padding: 10px 20px; border-radius: 100px; font-weight: 800; font-size: 0.95rem;
+            margin-bottom: 30px; box-shadow: 0 5px 15px rgba(230, 0, 126, 0.3);
+        }
+        
+        .result-pictogram {
+            width: 140px; height: 140px; margin: 0 auto 30px;
+            background: linear-gradient(135deg, rgba(230,0,126,0.1), rgba(230,0,126,0.05));
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-size: 4rem; color: var(--primary); box-shadow: inset 0 0 20px rgba(230,0,126,0.1);
+        }
+
+        .result-title { font-size: 2.2rem; font-weight: 900; color: var(--text-main); margin-bottom: 12px; }
+        .result-type { 
+            color: var(--text-sub); font-weight: 700; margin-bottom: 24px; 
+            display: inline-block; background: var(--btn-bg); padding: 6px 14px; border-radius: 12px;
+        }
+        .result-desc { font-size: 1.1rem; line-height: 1.7; color: var(--text-main); margin-bottom: 40px; word-break: keep-all;}
+
+        .rank-list-title { font-weight: 700; color: var(--text-sub); margin-bottom: 15px; font-size: 1rem; }
+        .rank-item {
+            background: var(--white); padding: 20px 24px; border-radius: 20px;
+            display: flex; align-items: center; margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s;
+            border: 1px solid rgba(128,128,128,0.05);
+        }
+        .rank-item:hover { transform: scale(1.02); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+        .rank-num {
+            width: 32px; height: 32px; background: var(--btn-bg); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: 800; font-size: 0.9rem; color: var(--text-sub); margin-right: 16px;
+        }
+        .rank-item.top2 .rank-num { background: #E0E0E0; color: #333; }
+        .rank-item.top3 .rank-num { background: #F0E6D2; color: #8A6D3B; }
+        .rank-name { font-weight: 700; font-size: 1.1rem; flex-grow: 1; }
+        .rank-icon { color: var(--text-sub); font-size: 1.3rem; }
+
+        .home-btn {
+            width: 100%; padding: 20px; background: var(--text-main); color: var(--bg-body);
+            border: none; border-radius: 20px; font-weight: 700; font-size: 1.1rem;
+            cursor: pointer; margin-top: 20px; transition: transform 0.2s;
+        }
+        .home-btn:hover { transform: scale(1.02); }
+        footer { text-align: center; margin-top: 60px; color: var(--text-sub); font-size: 0.9rem; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.4rem; }
+            .card { padding: 26px; }
+            .rank-1-card { padding: 40px 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+
+    <nav>
+        <div class="logo">SQCF <span>Application</span></div>
+        <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">☀️</button>
+    </nav>
+
+    <div id="main-screen" class="main-wrapper">
+        <section class="hero fade-up">
+            <div class="badge">✨ 2026 서울퀴어문화축제</div>
+            <h1>나만의<br>자원활동 팀 찾기</h1>
+            <p>10가지 질문으로 알아보는<br>나에게 딱 맞는 자원활동 팀!<br>깨알 상식도 함께 확인해보세요.</p>
+        </section>
+
+        <div class="card-grid">
+            <div class="card apt fade-up delay-1" onclick="startContent('aptitude')">
+                <div class="icon-box bg-pink"><i class="fas fa-heart"></i></div>
+                <h3>팀 적성검사</h3>
+                <p>어떤 팀이 나와 잘 맞을지 궁금하다면? 특성 분석으로 어울리는 팀을 추천해 드려요.</p>
+                <div class="btn-arrow">시작하기 <i class="fas fa-arrow-right"></i></div>
+            </div>
+            
+            <div class="card vol fade-up delay-2" onclick="startContent('volunteer')">
+                <div class="icon-box bg-purple"><i class="fas fa-book"></i></div>
+                <h3>가이드라인 퀴즈</h3>
+                <p>자원활동가 모집 안내, 꼼꼼히 확인하셨나요? 헷갈리기 쉬운 내용만 쏙쏙 골라 담았어요.</p>
+                <div class="btn-arrow">퀴즈 풀기 <i class="fas fa-arrow-right"></i></div>
+            </div>
+            
+            <div class="card gen fade-up delay-3" onclick="startContent('general')">
+                <div class="icon-box bg-blue"><i class="fas fa-flag"></i></div>
+                <h3>SQCF 일반 상식</h3>
+                <p>서울퀴어문화축제의 역사와 상식을 테스트해보세요.</p>
+                <div class="btn-arrow">도전하기 <i class="fas fa-arrow-right"></i></div>
+            </div>
+        </div>
+        <footer>&copy; 2026 Seoul Queer Culture Festival Quiz App</footer>
+    </div>
+
+    <div id="quiz-overlay" class="quiz-wrapper">
+        <div class="quiz-container">
+            <div class="quiz-header">
+                <div style="font-weight:700; color:var(--text-sub); display:flex; align-items:center; gap:8px;">
+                    <span id="quiz-icon">✨</span> <span id="quiz-title">적성검사</span>
+                </div>
+                <button class="close-btn" onclick="goHome()">닫기 ✕</button>
+            </div>
+
+            <div id="play-area">
+                <div class="progress-track"><div id="progress-bar" class="progress-fill"></div></div>
+                <div style="color:var(--primary); font-weight:800; margin-bottom:12px; font-size:1.1rem;" id="q-num">Question 1</div>
+                <div id="q-text" class="q-text">질문 내용이 여기에 표시됩니다.</div>
+                
+                <div id="opts-box"></div>
+                <div id="explain-box" class="explain-box"></div>
+                
+                <div class="btn-group">
+                    <button id="prev-btn" class="nav-btn prev-btn" onclick="prevStep()">이전</button>
+                    <button id="next-btn" class="nav-btn next-btn" onclick="nextStep()" style="display:none;">다음 👉</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="result-container">
+        <div id="apt-result" style="display:none;">
+            <div class="rank-1-card">
+                <div class="rank-badge">🥇 1위 - 당신에게 딱 맞는 팀</div>
+                <div class="result-pictogram" id="res-icon"><i class="fas fa-star"></i></div>
+                <h2 class="result-title" id="res-name">팀 이름</h2>
+                <div class="result-type" id="res-type">유형</div>
+                <p class="result-desc" id="res-desc">설명</p>
+                <button class="btn-arrow" style="justify-content:center; background:var(--btn-bg); border:1px solid var(--btn-border); pointer-events:auto;" onclick="window.open('https://forms.gle/ZCwZrks7yQXWfMrg7')">자원활동 지원하러 가기 👋</button>
+            </div>
+            
+            <div class="rank-list-title">👀 2위 · 3위 추천 팀</div>
+            <div id="sub-ranks"></div>
+        </div>
+
+        <div id="score-result" style="display:none; text-align:center; padding-top:40px;">
+            <div style="font-size:6rem; margin-bottom:20px; animation:bounce 2s infinite;">🎉</div>
+            <h2 style="font-size:2.5rem; margin-bottom:10px; font-weight:900;">퀴즈 완료!</h2>
+            <div style="font-size:4.5rem; font-weight:900; color:var(--primary); margin:20px 0;" id="final-score">0점</div>
+            <p id="final-msg" style="font-size:1.3rem; color:var(--text-main); font-weight:600;"></p>
+        </div>
+        <button class="home-btn" onclick="goHome()">처음으로 돌아가기 🏠</button>
+    </div>
+
+<script>
+    // --- [테마 관리] ---
+    function initTheme() {
+        const saved = localStorage.getItem('theme');
+        const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if(saved === 'dark' || (!saved && sysDark)) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('theme-btn').innerText = '🌙';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.getElementById('theme-btn').innerText = '☀️';
+        }
+    }
+    
+    function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        const btn = document.getElementById('theme-btn');
+        if(current === 'dark') {
+            html.setAttribute('data-theme', 'light');
+            localStorage.setItem('theme', 'light');
+            btn.innerText = '☀️';
+        } else {
+            html.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            btn.innerText = '🌙';
+        }
+    }
+    initTheme();
+
+    // --- [데이터 정의] ---
+    const teamInfo = {
+        booth: { name: "공식부스지원팀", type: "고정형", icon: "fa-store", desc: "앉아서 사람들과 소통하는 걸 좋아하시나요? 공식 부스에서 굿즈를 정리하고, 참여자들을 친절하게 안내하는 역할이 딱입니다! 차분하면서도 꼼꼼한 당신에게 추천해요." },
+        goods: { name: "굿즈홍보팀", type: "고정형", icon: "fa-bullhorn", desc: "당신은 구역의 분위기 메이커! 높은 텐션으로 예쁜 공식 굿즈를 홍보하고 판매하며 축제의 열기를 더해주세요. 활기차고 에너지 넘치는 분께 강력 추천합니다." },
+        stage: { name: "무대지원팀", type: "고정형", icon: "fa-microphone", desc: "화려한 무대 뒤, 긴장감 넘치는 백스테이지가 궁금하지 않나요? 아티스트 케어부터 시스템 지원까지, 공연의 성공을 위해 뒤에서 활약하는 숨은 주역입니다." },
+        safety: { name: "안전지원팀", type: "이동/고정형", icon: "fa-shield-halved", desc: "매의 눈을 가지셨군요! 행진과 현장의 질서를 유지하며 모두의 안전을 책임지는 든든한 역할입니다. 상황 판단이 빠르고 책임감 강한 당신에게 어울려요." },
+        medical: { name: "의무팀", type: "이동형", icon: "fa-briefcase-medical", desc: "생명을 지키는 히어로! 전문 지식으로 응급 상황에 대처하며 참여자들의 안전을 최전선에서 보호합니다. (*의료 관련 자격증이나 전공이 꼭 필요해요!)" },
+        parade: { name: "행진팀", type: "이동형", icon: "fa-flag", desc: "걷는 게 자신 있다면! 퍼레이드 행렬 속에서 함께 호흡하며 안전하게 행진을 이끕니다. 현장의 뜨거운 열기를 온몸으로 느끼고 싶은 분들께 추천해요." }
+    };
+
+    const quizzes = {
+        aptitude: [
+            { q: "축제 현장, 내가 가장 편안함을 느끼는 상황은?", o: [{t:"사람들과 대화하며 안내하는 게 즐거워요! (소통왕)",s:{booth:1}}, {t:"큰 소리로 홍보하고 분위기를 띄우고 싶어요!",s:{goods:1}}, {t:"무대 뒤나 시스템이 돌아가는 곳이 흥미로워요.",s:{stage:1}}, {t:"위험한 건 없는지 주변을 살피는 게 편해요.",s:{safety:1}}, {t:"혹시 모를 응급상황에 대비하고 싶어요.",s:{medical:2}}, {t:"가만히 있기보다 행렬과 함께 걷고 싶어요!",s:{parade:1}}] },
+            { q: "나는 어떤 방식의 활동을 선호하나요?", o: [{t:"한 자리에 앉거나 서서 차분하게 일하고 싶어요.",s:{booth:1}}, {t:"고정된 부스지만, 아주 활동적으로 움직일래요!",s:{goods:1}}, {t:"출연진이나 장비를 챙기는 스태프 업무가 딱이죠.",s:{stage:1}}, {t:"계속 돌아다니며 현장 상황을 체크할래요.",s:{safety:1}}, {t:"응급 환자가 발생하면 어디든 달려갈 수 있어요.",s:{medical:1}}, {t:"퍼레이드 트럭을 따라 끝까지 걸을 수 있어요.",s:{parade:1}}] },
+            { q: "친구들이 말하는 나의 장점은?", o: [{t:"설명을 친절하게 잘해준다.",s:{booth:1}}, {t:"목소리가 크고 에너지가 넘친다.",s:{goods:1}}, {t:"뒤에서 묵묵히 챙겨주는 걸 잘한다.",s:{stage:1}}, {t:"눈치가 빠르고 상황 판단이 정확하다.",s:{safety:1}}, {t:"의학 상식이 풍부하고 침착하다.",s:{medical:2}}, {t:"체력이 좋고 걷는 걸 좋아한다.",s:{parade:1}}] },
+            { q: "체력 소모, 어느 정도까지 괜찮으신가요?", o: [{t:"가능하면 적게 움직이고 싶어요.",s:{booth:1}}, {t:"제자리에서 에너지를 쏟는 건 자신 있어요!",s:{goods:1}}, {t:"무대 주변을 바쁘게 오가는 건 괜찮아요.",s:{stage:1}}, {t:"하루 종일 서 있거나 걷는 것도 거뜬해요.",s:{safety:1}}, {t:"위급할 땐 뛸 수 있는 체력이 있어요.",s:{medical:1}}, {t:"몇 시간 동안 행진해도 지치지 않아요!",s:{parade:1}}] },
+            { q: "나의 언어/소통 능력은 어떤 편인가요?", o: [{t:"한국어로 조곤조곤 안내하는 게 제일 편해요.",s:{booth:1}}, {t:"사람들의 시선을 끄는 말솜씨가 있어요.",s:{goods:1}}, {t:"외국어나 수어 등 다른 언어도 조금 해요!",s:{booth:1}}, {t:"말보다는 눈빛과 행동으로 통제하는 편이에요.",s:{safety:1}}, {t:"의료 전문 용어를 이해할 수 있어요.",s:{medical:1}}, {t:"구호를 외치며 사람들을 이끌 수 있어요.",s:{parade:1}}] },
+            { q: "가장 기대되는 축제의 순간은?", o: [{t:"참여자가 내 설명을 듣고 고마워할 때",s:{booth:1}}, {t:"준비한 굿즈가 모두 팔렸을 때의 쾌감!",s:{goods:1}}, {t:"화려한 공연이 문제없이 시작될 때",s:{stage:1}}, {t:"혼잡한 인파가 질서 정연하게 정리될 때",s:{safety:1}}, {t:"다친 사람을 무사히 치료해서 보낼 때",s:{medical:1}}, {t:"행진 트럭이 출발하고 음악이 울릴 때",s:{parade:1}}] },
+            { q: "돌발 상황! 내가 가장 잘 대처할 수 있는 일은?", o: [{t:"쏟아지는 질문에 하나하나 답변하기",s:{booth:1}}, {t:"지나가는 사람들에게 적극적으로 말 걸기",s:{goods:1}}, {t:"출연진 동선이 꼬이지 않게 정리하기",s:{stage:1}}, {t:"흥분한 사람들을 진정시키고 질서 잡기",s:{safety:1}}, {t:"상처를 소독하거나 응급처치하기",s:{medical:2}}, {t:"다수와 발맞춰 걸으며 간격 유지하기",s:{parade:1}}] },
+            { q: "내가 일하기에 가장 쾌적하다고 느끼는 곳은?", o: [{t:"안내 데스크나 본부석",s:{booth:1}}, {t:"사람들이 북적이는 판매 부스",s:{goods:1}}, {t:"스피커 소리가 쿵쿵울리는 무대 뒤",s:{stage:1}}, {t:"현장 곳곳을 누비는 길 위",s:{safety:1}}, {t:"의무실 혹은 환자가 있는 곳",s:{medical:1}}, {t:"뜨거운 태양 아래 도로 한복판",s:{parade:1}}] },
+            { q: "자원활동에서 가장 중요하게 생각하는 가치는?", o: [{t:"친절함과 정확한 정보",s:{booth:1}}, {t:"축제의 즐거움과 활기",s:{goods:1}}, {t:"프로그램의 완벽한 진행",s:{stage:1}}, {t:"모두의 안전과 질서",s:{safety:1}}, {t:"생명 존중과 보호",s:{medical:1}}, {t:"함께 걷는 연대의 힘",s:{parade:1}}] },
+            { q: "이번 축제에서 어떤 '얼굴'이 되고 싶나요?", o: [{t:"축제를 처음 만나는 사람들의 가이드",s:{booth:1}}, {t:"축제의 분위기를 띄우는 치어리더",s:{goods:1}}, {t:"성공적인 공연을 만드는 숨은 조력자",s:{stage:1}}, {t:"현장의 안전을 책임지는 보디가드",s:{safety:1}}, {t:"아픈 사람을 돕는 백의의 천사",s:{medical:1}}, {t:"행진의 물결을 만드는 파도",s:{parade:1}}] }
+        ],
+        volunteer: [
+            { q: "자원활동가 모집 마감일은 언제일까요?", a: 1, o: ["5월 11일 (일)", "5월 29일 (목) 자정", "6월 1일 (일)", "6월 14일 (토)"], d: "모집은 5월 29일 목요일 자정까지입니다! 늦지 않게 서둘러주세요." },
+            { q: "필수 교육 과정이 아닌 것은 무엇일까요?", a: 3, o: ["전체 신입교육", "성폭력 예방교육", "안전교육", "전체 뒤풀이"], d: "교육은 필수지만, 뒤풀이는 선택사항이에요. 부담 갖지 마세요!" },
+            { q: "대망의 2025 서울퀴어퍼레이드 날짜는?", a: 2, o: ["6월 7일", "6월 11일", "6월 14일 (토)", "6월 28일"], d: "바로 2025년 6월 14일 토요일입니다. 달력에 꼭 표시해두세요!" },
+            { q: "행진팀만의 특별한 점은 무엇일까요?", a: 3, o: ["굿즈를 판매한다", "노점상을 규제한다", "무대 위에 올라간다", "퍼레이드 행렬에 참여한다"], d: "행진팀은 유일하게 퍼레이드 행렬 속에서 직접 걷는 팀이에요." },
+            { q: "공식적인 소통은 주로 어디로 하나요?", a: 1, o: ["카카오톡 단톡방", "공식 이메일", "개인 전화", "인스타그램 DM"], d: "기록과 상호 존중을 위해 '공식 이메일'을 주로 사용합니다." },
+            { q: "지원 자격 요건으로 맞는 것은?", a: 3, o: ["성인만 가능", "대한민국 국적만", "성소수자만 가능", "한국어 소통 가능자"], d: "성별, 국적, 정체성 상관없이 '한국어로 소통'만 가능하다면 OK!" },
+            { q: "행사 당일 식사는 어떻게 제공되나요?", a: 2, o: ["제공 안 함", "모두에게 김밥 제공", "사전조사 (비건/알러지)", "각자 사 먹기"], d: "사전 설문을 통해 비건 여부와 알러지를 꼼꼼히 체크해서 제공해요." },
+            { q: "안전지원팀의 업무가 아닌 것은?", a: 3, o: ["현장 질서 유지", "이동 동선 관리", "불법 촬영 제지", "공식 굿즈 홍보"], d: "굿즈 홍보는 '굿즈홍보팀'의 핵심 업무랍니다." },
+            { q: "봉사활동 시간은 얼마나 인정되나요?", a: 0, o: ["1365 포털 (최대 8시간)", "VMS (무제한)", "학교 자체 양식", "인정 안 됨"], d: "1365 자원봉사 포털을 통해 하루 최대 8시간까지 인정돼요." },
+            { q: "현장에서 혐오 발언을 들었을 때 올바른 행동은?", a: 2, o: ["같이 화낸다", "못 들은 척한다", "제지하고 본부에 알린다", "동조한다"], d: "단호하게 제지하고, 안전팀이나 본부에 즉시 상황을 공유해야 해요." }
+        ],
+        general: [
+            { q: "서울퀴어문화축제, 그 역사적인 첫 시작은?", a: 2, o: ["1998년", "1999년", "2000년", "2001년"], d: "밀레니엄의 시작! 2000년에 대학로에서 처음 열렸답니다." },
+            { q: "조직위원회의 공식적인 법적 형태는 무엇일까요?", a: 1, o: ["영리법인", "비영리사단법인", "협동조합", "재단법인"], d: "서울퀴어문화축제조직위원회는 '비영리사단법인'입니다." },
+            { q: "조직위의 목적 사업에 해당하지 않는 것은?", a: 3, o: ["퍼레이드 개최", "퀴어 콘텐츠 개발", "해외 단체와 연대", "영리 목적 투자"], d: "비영리 단체이기에 영리 목적의 투자는 하지 않아요." },
+            { q: "서울퀴어퍼레이드집행위의 업무가 아닌 것은?", a: 3, o: ["부스 참여단 선정", "자원활동가 모집", "현장 안전 관리", "해외 영화 번역"], d: "영화 번역은 '한국퀴어영화제집행위원회'가 담당합니다." },
+            { q: "축제의 멋진 디자인과 SNS를 담당하는 팀은?", a: 0, o: ["미디어팀", "기획팀", "연대팀", "홍보팀"], d: "기획지원처 산하의 '미디어팀'이 금손 역할을 맡고 있어요." },
+            { q: "정회원의 의결권이 제한되는 슬픈 경우는?", a: 1, o: ["행사 1회 불참", "1년 이상 회비 미납", "SNS 팔로우 취소", "타 지역 이사"], d: "1년 이상 회비를 미납하면 의결권이 제한될 수 있어요 😭" },
+            { q: "CMS 후원회원의 최저 월 회비는 얼마일까요?", a: 2, o: ["3,000원", "4,000원", "5,000원", "10,000원"], d: "커피 한 잔 값! 월 5,000원부터 후원 가능합니다." },
+            { q: "기획단원(활동가)의 성격으로 옳은 것은?", a: 2, o: ["월급 받는 직원", "단기 알바", "상시 자원활동", "외부 임원"], d: "급여 없이 열정으로 일하는 '상시적 자원활동가' 분들입니다." },
+            { q: "업무 보안을 위해 사용하는 필수 메신저는?", a: 1, o: ["카카오톡", "텔레그램", "페이스북 메신저", "라인"], d: "보안이 중요한 만큼 업무용으로는 '텔레그램'을 사용해요." },
+            { q: "한국퀴어영화제의 멋진 기조(슬로건)는?", a: 2, o: ["퀴어의 눈을 뜨다", "세상을 바꾸다", "퀴어의 창을 열다", "모두와 함께하다"], d: "영화제는 언제나 '퀴어의 창을 열다(Opening the Windows)'를 지향합니다." }
+        ]
+    };
+
+    // --- [로직] ---
+    let mode = '';
+    let data = [];
+    let idx = 0;
+    let userAnswers = []; 
+
+    function startContent(type) {
+        mode = type;
+        data = quizzes[type];
+        idx = 0;
+        userAnswers = new Array(data.length).fill(null);
+
+        document.getElementById('main-screen').style.display = 'none';
+        document.getElementById('quiz-overlay').classList.add('active');
+        document.getElementById('play-area').style.display = 'block';
+        document.getElementById('result-screen').style.display = 'none';
+        
+        const names = {aptitude:"적성검사", volunteer:"가이드라인 퀴즈", general:"일반 상식"};
+        const icons = {aptitude:"✨", volunteer:"🤝", general:"🏳️‍🌈"};
+        document.getElementById('quiz-title').innerText = names[type];
+        document.getElementById('quiz-icon').innerText = icons[type];
+        
+        render();
+    }
+
+    function goHome() {
+        document.getElementById('quiz-overlay').classList.remove('active');
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('main-screen').style.display = 'block';
+    }
+
+    function render() {
+        const item = data[idx];
+        const pct = ((idx+1)/data.length)*100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('q-num').innerText = `Question ${idx+1} / ${data.length}`;
+        document.getElementById('q-text').innerText = item.q;
+        
+        document.getElementById('explain-box').style.display = 'none';
+        const nextBtn = document.getElementById('next-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const box = document.getElementById('opts-box');
+        box.innerHTML = '';
+
+        prevBtn.style.visibility = idx > 0 ? 'visible' : 'hidden';
+        nextBtn.style.display = 'none'; 
+
+        const savedAns = userAnswers[idx];
+
+        if(mode === 'aptitude') {
+            item.o.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'opt-btn';
+                btn.innerText = opt.t;
+                
+                if (savedAns && savedAns.index === i) {
+                    btn.classList.add('selected');
+                }
+
+                btn.onclick = () => {
+                    userAnswers[idx] = { scores: opt.s, index: i };
+                    document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    setTimeout(nextStep, 350);
+                };
+                box.appendChild(btn);
+            });
+            if(savedAns) nextBtn.style.display = 'block'; 
+
+        } else {
+            item.o.forEach((txt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'opt-btn';
+                btn.innerText = txt;
+                
+                if (savedAns) {
+                    btn.disabled = true; 
+                    if (i === item.a) btn.classList.add('correct');
+                    if (savedAns.index === i && i !== item.a) btn.classList.add('wrong');
+                }
+
+                btn.onclick = () => {
+                    userAnswers[idx] = { isCorrect: (i === item.a), index: i };
+                    const allBtn = document.querySelectorAll('.opt-btn');
+                    allBtn.forEach(b => b.disabled = true);
+                    
+                    if(i === item.a) {
+                        btn.classList.add('correct');
+                    } else {
+                        btn.classList.add('wrong');
+                        allBtn[item.a].classList.add('correct');
+                    }
+                    showExplanation(item.d);
+                };
+                box.appendChild(btn);
+            });
+
+            if (savedAns) {
+                showExplanation(item.d);
+            }
+        }
+    }
+
+    function showExplanation(text) {
+        const exp = document.getElementById('explain-box');
+        exp.innerText = "💡 " + text;
+        exp.style.display = 'block';
+        const nextBtn = document.getElementById('next-btn');
+        nextBtn.innerText = idx === data.length - 1 ? "결과 보기 🎉" : "다음으로 넘어가기 👉";
+        nextBtn.style.display = 'block';
+    }
+
+    function prevStep() {
+        if(idx > 0) {
+            idx--;
+            render();
+        }
+    }
+
+    function nextStep() {
+        if(idx < data.length - 1) {
+            idx++;
+            render();
+        } else {
+            showResult();
+        }
+    }
+
+    function showResult() {
+        document.getElementById('quiz-overlay').classList.remove('active');
+        document.getElementById('result-screen').style.display = 'block';
+        window.scrollTo(0,0);
+
+        if(mode === 'aptitude') {
+            document.getElementById('apt-result').style.display = 'block';
+            document.getElementById('score-result').style.display = 'none';
+            
+            let totalScores = { booth:0, goods:0, stage:0, safety:0, medical:0, parade:0 };
+            userAnswers.forEach(ans => {
+                if(ans && ans.scores) {
+                    for(let k in ans.scores) totalScores[k] += ans.scores[k];
+                }
+            });
+
+            let arr = Object.keys(totalScores).map(k => ({key:k, val:totalScores[k]}));
+            arr = arr.filter(x => !(x.key==='medical' && x.val<2));
+            arr.sort((a,b) => b.val - a.val);
+
+            // [수정] 1위 표시 로직
+            const best = teamInfo[arr[0].key];
+            document.getElementById('res-icon').innerHTML = `<i class="fas ${best.icon}"></i>`;
+            document.getElementById('res-name').innerText = best.name;
+            document.getElementById('res-type').innerText = best.type;
+            document.getElementById('res-desc').innerText = best.desc;
+
+            // [수정] 2~3위 리스트
+            const subBox = document.getElementById('sub-ranks');
+            subBox.innerHTML = '';
+            for(let i=1; i<3; i++) {
+                if(!arr[i]) break;
+                const item = teamInfo[arr[i].key];
+                subBox.innerHTML += `
+                    <div class="rank-item top${i+1}" onclick="viewRank('${arr[i].key}')">
+                        <div class="rank-num">${i+1}위</div>
+                        <div class="rank-name">${item.name}</div>
+                        <div class="rank-icon"><i class="fas ${item.icon}"></i></div>
+                    </div>
+                `;
+            }
+        } else {
+            document.getElementById('apt-result').style.display = 'none';
+            document.getElementById('score-result').style.display = 'block';
+            
+            let correctCount = 0;
+            userAnswers.forEach(ans => {
+                if(ans && ans.isCorrect) correctCount++;
+            });
+
+            document.getElementById('final-score').innerText = `${correctCount} / ${data.length}`;
+            const msg = correctCount === data.length ? "만점이에요! 완벽합니다 🎉" : (correctCount >= data.length*0.7 ? "훌륭해요! 조금만 더 하면 만점 👍" : "조금 더 공부해보면 좋을 것 같아요 💪");
+            document.getElementById('final-msg').innerText = msg;
+        }
+        
+        var duration = 3000;
+        var end = Date.now() + duration;
+        (function frame() {
+            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#E6007E', '#6C2489', '#FFD700'] });
+            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#E6007E', '#6C2489', '#FFD700'] });
+            if (Date.now() < end) requestAnimationFrame(frame);
+        }());
+    }
+
+    function viewRank(key) {
+        const info = teamInfo[key];
+        document.getElementById('res-icon').innerHTML = `<i class="fas ${info.icon}"></i>`;
+        document.getElementById('res-name').innerText = info.name;
+        document.getElementById('res-type').innerText = info.type;
+        document.getElementById('res-desc').innerText = info.desc;
+        window.scrollTo(0,0);
+    }
+</script>
+
+</body>
+</html>
